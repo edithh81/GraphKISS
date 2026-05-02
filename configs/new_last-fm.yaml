@@ -12,7 +12,7 @@ n_tbatch: 30
 PNA_delta: null
 
 K: 480
-K_neg: 60
+K_neg: 40
 item_bonus_init: 0.05
 
 K_ppr: 90
@@ -38,5 +38,5 @@ tau_p: 1.8
 tau_g: 1.2
 pred_rank: 16
 
-lambda_intent_div: 1.0e-6
-lambda_centroid_ortho: 1.5e-6
+lambda_intent_div: 2.0e-6
+lambda_centroid_ortho: 2.0e-6
