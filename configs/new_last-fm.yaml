@@ -1,0 +1,42 @@
+seed: 42
+lr: 7.0e-4
+decay_rate: 0.992
+lamb: 1.0e-4
+epochs: 30
+hidden_dim: 64
+n_layer: 3
+dropout: 0.05
+n_batch: 30
+n_tbatch: 30
+
+PNA_delta: null
+
+K: 480
+K_neg: 60
+item_bonus_init: 0.05
+
+K_ppr: 90
+ppr_topk: 12288
+ppr_compute_bs: 128
+ppr_device: auto
+ppr_fallback_to_cpu: true
+
+K_intent: 4
+tuple_dropout: 0.15
+slot_attn_iters: 3
+slot_attn_eps: 1.0e-8
+slot_attn_mlp_hidden: 128
+slot_attn_use_input_ln: true
+slot_attn_use_slot_ln: true
+slot_attn_use_mlp_ln: true
+slot_attn_use_gru: true
+slot_attn_use_residual_mlp: true
+slot_attn_learned_slot_init: true
+
+tau_s: 1.8
+tau_p: 1.8
+tau_g: 1.2
+pred_rank: 16
+
+lambda_intent_div: 1.0e-6
+lambda_centroid_ortho: 1.5e-6
