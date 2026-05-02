@@ -1,0 +1,43 @@
+K: 750
+K_intent: 6
+K_neg: 50
+K_ppr: 180
+PNA_delta: null
+decay_rate: 0.985
+dropout: 0.1
+epochs: 20
+hidden_dim: 48
+item_bonus_init: 0.05
+lamb: 0.0001
+lambda_centroid_ortho: 0.002
+lambda_intent_div: 0.002
+lr: 0.0008
+n_batch: 8
+n_layer: 3
+n_tbatch: 12
+ppr_compute_bs: 128
+ppr_device: auto
+ppr_fallback_to_cpu: true
+ppr_topk: 12288
+pred_rank: 24
+seed: 42
+slot_attn_eps: 1.0e-08
+slot_attn_iters: 3
+slot_attn_learned_slot_init: true
+slot_attn_mlp_hidden: 96
+slot_attn_use_gru: true
+slot_attn_use_input_ln: true
+slot_attn_use_mlp_ln: true
+slot_attn_use_residual_mlp: true
+slot_attn_use_slot_ln: true
+tau_g: 1.2
+tau_p: 1.8
+tau_s: 1.8
+tuple_dropout: 0.15
+
+
+# model_params_total: 220039
+# model_params_trainable: 220039
+0[TEST] recall:0.2158  ndcg:0.1589   [TIME] train:3136.0546 inference:4139.4409  [GPU] train_peak:58.32GiB infer_peak:42.16GiB  [MSG] msgs/fwd:4984833 msgs/fwd_test:6822772
+1[TEST] recall:0.2201  ndcg:0.1618   [TIME] train:3274.3821 inference:4201.7734  [GPU] train_peak:59.14GiB infer_peak:42.83GiB  [MSG] msgs/fwd:5123447 msgs/fwd_test:6914305
+2[TEST] recall:0.2215  ndcg:0.1633   [TIME] train:3198.5073 inference:4178.2251  [GPU] train_peak:58.97GiB infer_peak:42.51GiB  [MSG] msgs/fwd:5074219 msgs/fwd_test:6887463

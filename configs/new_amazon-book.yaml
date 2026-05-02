@@ -1,13 +1,13 @@
 seed: 42
-lr: 1.0e-3
+lr: 8.0e-4
 decay_rate: 0.985
 lamb: 1.0e-4
 epochs: 20
 hidden_dim: 48
 n_layer: 3
 dropout: 0.1
-n_batch: 10
-n_tbatch: 10
+n_batch: 8
+n_tbatch: 12
 
 PNA_delta: null
 
@@ -21,7 +21,7 @@ ppr_compute_bs: 128
 ppr_device: auto
 ppr_fallback_to_cpu: true
 
-K_intent: 4
+K_intent: 6
 tuple_dropout: 0.15
 slot_attn_iters: 3
 slot_attn_eps: 1.0e-8
@@ -38,5 +38,5 @@ tau_p: 1.8
 tau_g: 1.2
 pred_rank: 24
 
-lambda_intent_div: 1.0e-3
-lambda_centroid_ortho: 1.5e-3
+lambda_intent_div: 2.0e-3
+lambda_centroid_ortho: 2.0e-3

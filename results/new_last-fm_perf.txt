@@ -1,0 +1,60 @@
+K: 480
+K_intent: 4
+K_neg: 40
+K_ppr: 90
+PNA_delta: null
+decay_rate: 0.992
+dropout: 0.05
+epochs: 30
+hidden_dim: 64
+item_bonus_init: 0.05
+lamb: 0.0001
+lambda_centroid_ortho: 2.0e-06
+lambda_intent_div: 2.0e-06
+lr: 0.0007
+n_batch: 30
+n_layer: 3
+n_tbatch: 30
+ppr_compute_bs: 128
+ppr_device: auto
+ppr_fallback_to_cpu: true
+ppr_topk: 12288
+pred_rank: 16
+seed: 42
+slot_attn_eps: 1.0e-08
+slot_attn_iters: 3
+slot_attn_learned_slot_init: true
+slot_attn_mlp_hidden: 128
+slot_attn_use_gru: true
+slot_attn_use_input_ln: true
+slot_attn_use_mlp_ln: true
+slot_attn_use_residual_mlp: true
+slot_attn_use_slot_ln: true
+tau_g: 1.2
+tau_p: 1.8
+tau_s: 1.8
+tuple_dropout: 0.15
+
+# model_params_total: 370951
+# model_params_trainable: 370951
+
+0[TEST] recall:0.4923  ndcg:0.4800   [TIME] train:748.1823 inference:468.7170  [GPU] train_peak:37.50GiB infer_peak:21.28GiB  [MSG] msgs/fwd:2224668 msgs/fwd_test:2195390
+1[TEST] recall:0.5056  ndcg:0.5009   [TIME] train:737.1999 inference:469.0683  [GPU] train_peak:39.91GiB infer_peak:21.29GiB  [MSG] msgs/fwd:2139249 msgs/fwd_test:2208839
+2[TEST] recall:0.5261  ndcg:0.5335   [TIME] train:726.3647 inference:511.9204  [GPU] train_peak:39.08GiB infer_peak:21.47GiB  [MSG] msgs/fwd:2115855 msgs/fwd_test:2691105
+3[TEST] recall:0.5247  ndcg:0.5362   [TIME] train:742.6345 inference:505.3563  [GPU] train_peak:37.71GiB infer_peak:21.38GiB  [MSG] msgs/fwd:2281169 msgs/fwd_test:2589136
+4[TEST] recall:0.5216  ndcg:0.5424   [TIME] train:766.6307 inference:548.7976  [GPU] train_peak:38.37GiB infer_peak:22.06GiB  [MSG] msgs/fwd:2447123 msgs/fwd_test:3032054
+5[TEST] recall:0.5208  ndcg:0.5426   [TIME] train:776.0890 inference:550.2033  [GPU] train_peak:38.29GiB infer_peak:22.27GiB  [MSG] msgs/fwd:2538048 msgs/fwd_test:3106224
+6[TEST] recall:0.5318  ndcg:0.5445   [TIME] train:781.6988 inference:534.1983  [GPU] train_peak:38.13GiB infer_peak:21.49GiB  [MSG] msgs/fwd:2603038 msgs/fwd_test:2905277
+7[TEST] recall:0.5312  ndcg:0.5428   [TIME] train:769.5059 inference:510.1717  [GPU] train_peak:37.88GiB infer_peak:21.47GiB  [MSG] msgs/fwd:2517181 msgs/fwd_test:2669653
+8[TEST] recall:0.5299  ndcg:0.5430   [TIME] train:755.5117 inference:515.6210  [GPU] train_peak:37.86GiB infer_peak:21.46GiB  [MSG] msgs/fwd:2384226 msgs/fwd_test:2714289
+9[TEST] recall:0.5328  ndcg:0.5412   [TIME] train:751.8340 inference:520.0696  [GPU] train_peak:37.88GiB infer_peak:21.45GiB  [MSG] msgs/fwd:2359587 msgs/fwd_test:2736659
+10[TEST] recall:0.5325  ndcg:0.5423   [TIME] train:759.5235 inference:529.8880  [GPU] train_peak:37.98GiB infer_peak:21.45GiB  [MSG] msgs/fwd:2418752 msgs/fwd_test:2836151
+11[TEST] recall:0.5332  ndcg:0.5416   [TIME] train:872.1076 inference:510.7262  [GPU] train_peak:47.45GiB infer_peak:21.48GiB  [MSG] msgs/fwd:2748763 msgs/fwd_test:2669911
+12[TEST] recall:0.5348  ndcg:0.5494   [TIME] train:775.6859 inference:532.1506  [GPU] train_peak:37.97GiB infer_peak:21.48GiB  [MSG] msgs/fwd:2449353 msgs/fwd_test:2898309
+13[TEST] recall:0.5332  ndcg:0.5447   [TIME] train:830.8320 inference:532.4212  [GPU] train_peak:47.90GiB infer_peak:21.62GiB  [MSG] msgs/fwd:2640274 msgs/fwd_test:2876914
+14[TEST] recall:0.5273  ndcg:0.5480   [TIME] train:784.3858 inference:547.2938  [GPU] train_peak:38.29GiB infer_peak:22.11GiB  [MSG] msgs/fwd:2571144 msgs/fwd_test:3034643
+15[TEST] recall:0.5273  ndcg:0.5466   [TIME] train:782.8202 inference:548.2758  [GPU] train_peak:38.31GiB infer_peak:22.11GiB  [MSG] msgs/fwd:2572428 msgs/fwd_test:3053047
+16[TEST] recall:0.5264  ndcg:0.5448   [TIME] train:776.8305 inference:548.5963  [GPU] train_peak:38.28GiB infer_peak:22.12GiB  [MSG] msgs/fwd:2565647 msgs/fwd_test:3052487
+17[TEST] recall:0.5216  ndcg:0.5383   [TIME] train:780.2722 inference:550.5349  [GPU] train_peak:38.35GiB infer_peak:22.17GiB  [MSG] msgs/fwd:2565139 msgs/fwd_test:3081466
+18[TEST] recall:0.5243  ndcg:0.5457   [TIME] train:781.2440 inference:550.4764  [GPU] train_peak:38.34GiB infer_peak:21.99GiB  [MSG] msgs/fwd:2600661 msgs/fwd_test:3070835
+19[TEST] recall:0.5289  ndcg:0.5338   [TIME] train:772.0476 inference:498.9901  [GPU] train_peak:37.74GiB infer_peak:21.43GiB  [MSG] msgs/fwd:2526814 msgs/fwd_test:2549253

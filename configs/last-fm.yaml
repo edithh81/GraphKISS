@@ -38,5 +38,5 @@ tau_p: 1.8
 tau_g: 1.2
 pred_rank: 16
 
-lambda_intent_div: 1.0e-3
-lambda_centroid_ortho: 1.5e-3
+lambda_intent_div: 2.0e-3
+lambda_centroid_ortho: 3.0e-3
