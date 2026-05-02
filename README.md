@@ -21,6 +21,15 @@ Graph-based recommendation model that expands per-user collaborative KG subgraph
 
 ---
 
+## Clone
+
+```bash
+git clone https://github.com/edithh81/GraphKISS.git
+cd GraphKISS
+```
+
+---
+
 ## Installation
 
 ### Script (recommended)
