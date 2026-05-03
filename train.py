@@ -103,7 +103,7 @@ if __name__ == "__main__":
             "train_s", "infer_s",
             "train_peak_gib", "infer_peak_gib",
             "msgs_fwd_train", "msgs_fwd_test",
-            "lr", "model_params_total", "model_params_trainable",
+            "lr", "tau", "model_params_total", "model_params_trainable",
         ])
         csv_file.flush()
 
@@ -115,7 +115,7 @@ if __name__ == "__main__":
     best_str = ""
     for epoch in range(opts.epochs):
         print("epoch ", epoch)
-        recall, ndcg, out_str = model.train_batch()
+        recall, ndcg, out_str = model.train_batch(epoch)
 
         with open(opts.perf_file, "a+") as f:
             f.write(str(epoch) + out_str)
@@ -130,6 +130,7 @@ if __name__ == "__main__":
             int(getattr(model, 'msgs_fwd_train', 0)),
             int(getattr(model, 'msgs_fwd_test', 0)),
             f"{model.scheduler.get_last_lr()[0]:.8f}",
+            f"{getattr(model, 'current_tau', 0.0):.4f}",
             n_params_total, n_params_trainable,
         ])
         csv_file.flush()

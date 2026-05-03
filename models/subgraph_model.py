@@ -639,8 +639,12 @@ class AdaptiveSubgraphModel(torch.nn.Module):
 
         self.edge_counts_layer: list[int] = []
 
-        self.tau_s = float(getattr(params, "tau_s", getattr(params, "tau", 1.0)))
-        self.tau_p = float(getattr(params, "tau_p", getattr(params, "tau", 1.0)))
+        self.tau_min = float(getattr(params, "tau_min", getattr(params, "tau_s", getattr(params, "tau", 0.1))))
+        self.tau_max = float(getattr(params, "tau_max", getattr(params, "tau_s", getattr(params, "tau", 1.8))))
+        self.tau_anneal_epochs = int(getattr(params, "tau_anneal_epochs", getattr(params, "epochs", 20)))
+        # Both scorer temperatures start at tau_min and will be annealed via set_temperature().
+        self.tau_s = self.tau_min
+        self.tau_p = self.tau_min
         self.tau_g = float(getattr(params, "tau_g", 1.0))
         self.pred_rank = int(getattr(params, "pred_rank", max(8, self.hidden_dim // 2)))
 
@@ -844,6 +848,36 @@ class AdaptiveSubgraphModel(torch.nn.Module):
 
         self.dropout = nn.Dropout(params.dropout)
         self.gate = nn.GRU(self.hidden_dim, self.hidden_dim)
+
+    # ------------------------------------------------------------------
+    # Temperature annealing
+    # ------------------------------------------------------------------
+    def set_temperature(self, epoch: int) -> float:
+        """
+        Linearly anneal tau from tau_min (sum-like) to tau_max (max-like).
+
+        tau = clamp(tau_min + (tau_max - tau_min) * epoch / tau_anneal_epochs,
+                    tau_min, tau_max)
+
+        Call once per epoch *before* forward passes begin.
+        Returns the newly applied tau value.
+        """
+        if self.tau_anneal_epochs <= 0:
+            tau = self.tau_max
+        else:
+            progress = min(1.0, epoch / self.tau_anneal_epochs)
+            tau = self.tau_min + (self.tau_max - self.tau_min) * progress
+
+        tau = float(max(self.tau_min, min(self.tau_max, tau)))
+
+        # Update prediction scorer temperature.
+        self.tau_p = tau
+
+        # Update all node-scorer temperatures in-place.
+        for layer in self.gnn_layers:
+            layer.scorer.tau = tau
+
+        return tau
 
     def _build_batch_ppr(self, q_sub):
         if self.ppr_store is None:
