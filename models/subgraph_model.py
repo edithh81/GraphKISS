@@ -129,36 +129,6 @@ def intent_diversity_loss(intent_slots: torch.Tensor) -> torch.Tensor:
     return loss
 
 
-def centroid_orthogonality_loss(intent_slots: torch.Tensor) -> torch.Tensor:
-    """
-    Cross-user distance-correlation independence regularizer.
-
-    Computes batch-mean centroids c_k = mean_u p_{u,k} ∈ R^D, then measures
-    pairwise dCor between centroids treating the D feature dimensions as samples:
-        L_cross = Σ_{1≤k<k'≤K} dCor(c_k, c_k')
-
-    Prevents cross-user collapse: all users' slot k drifting to the same direction.
-    """
-    if intent_slots is None or intent_slots.numel() == 0:
-        device = intent_slots.device if intent_slots is not None else "cpu"
-        return torch.tensor(0.0, device=device)
-    if intent_slots.dim() != 3:
-        raise ValueError(
-            f"intent_slots must have shape [B, K, D], got {tuple(intent_slots.shape)}."
-        )
-    K = intent_slots.size(1)
-    if K <= 1:
-        return intent_slots.new_tensor(0.0)
-
-    centroids = intent_slots.mean(dim=0)   # [K, D]
-    loss = intent_slots.new_tensor(0.0)
-    for k in range(K):
-        for kp in range(k + 1, K):
-            # treat D dimensions as n samples, each centroid value as a scalar obs
-            loss = loss + _dcor(centroids[k].unsqueeze(-1), centroids[kp].unsqueeze(-1))
-    return loss
-
-
 def score_edges_with_batch_ppr(edge_batch, tail_nodes, batch_ppr, device):
     """
     Score candidate edges by gathering from a batch-local dense PPR scratch.
@@ -489,7 +459,6 @@ class AdaptiveSubgraphLayer(nn.Module):
                 "tuple_rel_ids": tuple_records["rel_id"],
                 "intent_slots": intent_slots,
                 "intent_div_loss": intent_diversity_loss(intent_slots),
-                "centroid_ortho_loss": centroid_orthogonality_loss(intent_slots),
             }
 
         # Layer 1 (hop-1 items) is fully kept. Sampling starts from hop 2.
@@ -1005,11 +974,9 @@ class AdaptiveSubgraphModel(torch.nn.Module):
 
         zero = torch.tensor(0.0, device=self.device)
         intent_div_loss = intent_state.get("intent_div_loss", zero) if intent_state is not None else zero
-        centroid_ortho_loss = intent_state.get("centroid_ortho_loss", zero) if intent_state is not None else zero
 
         if return_aux:
             return scores_all, {
                 "intent_div_loss": intent_div_loss,
-                "centroid_ortho_loss": centroid_ortho_loss,
             }
         return scores_all

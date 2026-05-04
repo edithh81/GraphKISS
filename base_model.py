@@ -76,7 +76,6 @@ class BaseModel(object):
             loss = (
                 bpr_loss
                 + float(getattr(self.args, "lambda_intent_div", 1e-4)) * aux["intent_div_loss"]
-                + float(getattr(self.args, "lambda_centroid_ortho", 1e-3)) * aux["centroid_ortho_loss"]
             )
             loss.backward()
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)

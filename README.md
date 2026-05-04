@@ -116,7 +116,6 @@ All hyperparameters live in `configs/<dataset>.yaml`. Key parameters:
 | `lr` | Learning rate |
 | `epochs` | Training epochs |
 | `lambda_intent_div` | Weight for intra-user intent diversity loss |
-| `lambda_centroid_ortho` | Weight for cross-user centroid orthogonality loss |
 | `tau_s` / `tau_p` | Sampling / prediction logsumexp temperature |
 
 ---
