@@ -33,9 +33,9 @@ slot_attn_use_gru: true
 slot_attn_use_residual_mlp: true
 slot_attn_learned_slot_init: true
 
-tau_min: 0.1
-tau_max: 1.8
-tau_anneal_epochs: 15  # tau reaches tau_max after this many epochs
+tau_min: 1.0
+tau_max: 1.5
+tau_anneal_epochs: 15  # tau anneals from tau_max down to tau_min over this many epochs
 tau_g: 1.2
 pred_rank: 24
 

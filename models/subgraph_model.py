@@ -12,7 +12,7 @@ from .aggregator import (
     KUCNetAggregator,
     DegreeScalerSumAggregator,
 )
-from .scorer import FiLMIntentConditioner, IntentSlotNodeScorer, LowRankIntentItemScorer
+from .scorer import FiLMIntentConditioner, IntentSlotNodeScorer, LowRankIntentItemScorer, sparsemax
 from .slot_attention_blocks import SlotAttentionIntentExtractor
 from ppr import compress_ppr_to_topk, get_ppr
 
@@ -852,19 +852,26 @@ class AdaptiveSubgraphModel(torch.nn.Module):
     # ------------------------------------------------------------------
     def set_temperature(self, epoch: int) -> float:
         """
-        Linearly anneal tau from tau_min (sum-like) to tau_max (max-like).
+        Anneal tau from tau_max (high, near-uniform) down to tau_min (low, sparse).
 
-        tau = clamp(tau_min + (tau_max - tau_min) * epoch / tau_anneal_epochs,
+        tau = clamp(tau_max - (tau_max - tau_min) * epoch / tau_anneal_epochs,
                     tau_min, tau_max)
+
+        At epoch 0  : tau = tau_max  => sparsemax weights near-uniform
+                                        (all intents get a chance to learn)
+        At epoch T+  : tau = tau_min  => sparsemax weights are maximally sparse
+                                        (winning intent dominates)
+
+        Recommended starting values: tau_max=2.0, tau_min=1.0
 
         Call once per epoch *before* forward passes begin.
         Returns the newly applied tau value.
         """
         if self.tau_anneal_epochs <= 0:
-            tau = self.tau_max
+            tau = self.tau_min
         else:
             progress = min(1.0, epoch / self.tau_anneal_epochs)
-            tau = self.tau_min + (self.tau_max - self.tau_min) * progress
+            tau = self.tau_max - (self.tau_max - self.tau_min) * progress
 
         tau = float(max(self.tau_min, min(self.tau_max, tau)))
 
@@ -988,7 +995,10 @@ class AdaptiveSubgraphModel(torch.nn.Module):
             user_views=user_views,
             item_emb=h_i,
         )
-        scores = torch.logsumexp(self.tau_p * scores_k, dim=-1) / self.tau_p
+        # Sparsemax-weighted mixture over intents for final prediction: sparsemax(ŷ / tau_p).
+        # High tau_p => near-uniform alpha; low tau_p => sparse alpha.
+        alpha = sparsemax(scores_k / self.tau_p, dim=-1)  # [M, K]
+        scores = (alpha * scores_k).sum(dim=-1)            # [M]
 
         scores_all = torch.zeros((n, self.n_items), device=self.device)
         scores_all[(final_nodes[:, 0], final_nodes[:, 1] - self.n_users)] = scores
