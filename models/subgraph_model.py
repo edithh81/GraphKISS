@@ -656,7 +656,6 @@ class AdaptiveSubgraphModel(torch.nn.Module):
         slot_attn_use_mlp_ln = bool(getattr(params, "slot_attn_use_mlp_ln", True))
         slot_attn_use_gru = bool(getattr(params, "slot_attn_use_gru", True))
         slot_attn_use_residual_mlp = bool(getattr(params, "slot_attn_use_residual_mlp", True))
-        slot_attn_learned_slot_init = bool(getattr(params, "slot_attn_learned_slot_init", True))
         tuple_dropout = float(getattr(params, "tuple_dropout", 0.0))
 
         self.item_bonus = nn.Parameter(
@@ -808,7 +807,6 @@ class AdaptiveSubgraphModel(torch.nn.Module):
             eps=slot_attn_eps,
             hidden_dim=slot_attn_mlp_hidden,
             tuple_dropout=tuple_dropout,
-            learned_slot_init=slot_attn_learned_slot_init,
             use_input_ln=slot_attn_use_input_ln,
             use_slot_ln=slot_attn_use_slot_ln,
             use_mlp_ln=slot_attn_use_mlp_ln,

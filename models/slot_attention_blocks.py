@@ -153,7 +153,6 @@ class SlotAttentionIntentExtractor(nn.Module):
         eps: float = 1e-8,
         hidden_dim: int | None = None,
         tuple_dropout: float = 0.0,
-        learned_slot_init: bool = True,
         use_input_ln: bool = True,
         use_slot_ln: bool = True,
         use_mlp_ln: bool = True,
@@ -167,8 +166,6 @@ class SlotAttentionIntentExtractor(nn.Module):
         self.dim_hidden = dim_hidden
         self.num_outputs = num_outputs
         self.tuple_dropout = float(tuple_dropout)
-        # True: stochastic Gaussian init (mu + eps * sigma), False: deterministic mu.
-        self.learned_slot_init = bool(learned_slot_init)
 
         self.input_proj = (
             nn.Identity() if dim_input == dim_hidden else nn.Linear(dim_input, dim_hidden)
@@ -188,18 +185,16 @@ class SlotAttentionIntentExtractor(nn.Module):
             use_residual_mlp=use_residual_mlp,
         )
 
-        # Per-slot orthogonal means: each slot starts in a different direction.
-        self.slot_mu = nn.Parameter(torch.empty(1, num_outputs, dim_hidden))
-        self._orthogonal_init_slots(self.slot_mu, gain=dim_hidden ** -0.5)
-
-        # Per-slot log-sigma so each slot can learn its own spread (was shared across K).
-        self.slot_log_sigma = nn.Parameter(
-            torch.full((1, num_outputs, dim_hidden), -2.0)
-        )
+        # Shared mu and log-sigma across all K slots, matching the original paper:
+        #   slots ~ N(mu, diag(sigma))  where mu, sigma in R^D (not R^{K x D}).
+        # Slots are differentiated solely by independent noise draws, not by distinct means.
+        self.slot_mu = nn.Parameter(torch.zeros(1, 1, dim_hidden))
+        self.slot_log_sigma = nn.Parameter(torch.full((1, 1, dim_hidden), -2.0))
 
         # default_slots: also orthogonal, and decoupled from slot_mu.
         self.default_slots = nn.Parameter(torch.empty(1, num_outputs, dim_hidden))
         self._orthogonal_init_slots(self.default_slots, gain=dim_hidden ** -0.5)
+        
     @staticmethod
     def _orthogonal_init_slots(param: nn.Parameter, gain: float = 1.0) -> None:
         """
@@ -227,12 +222,23 @@ class SlotAttentionIntentExtractor(nn.Module):
         return self.default_slots.repeat(batch_size, 1, 1)
 
     def _init_slots(self, batch_size, device, dtype):
-        mu = self.slot_mu.expand(batch_size, -1, -1).to(device=device, dtype=dtype)
-        if self.learned_slot_init:
-            return mu
-        # was: .expand(batch_size, self.num_outputs, -1) — now slot_log_sigma is already [1, K, D]
-        sigma = self.slot_log_sigma.exp().expand(batch_size, -1, -1).to(device=device, dtype=dtype)
-        noise = torch.randn_like(mu)
+        """Initialize slots as independent samples from N(mu, diag(sigma)) (paper default).
+
+        mu and sigma are shared across all K slots ([1, 1, D] parameters), exactly as in
+        Algorithm 1 of the original Slot Attention paper. Each slot in each batch item
+        receives an independent noise draw, so slots diverge through reparameterization
+        rather than through distinct learned means.
+
+        When learned_slot_init=True (default): slots ~ N(mu, diag(sigma)).
+        When learned_slot_init=False: all slots initialized to mu (no noise).
+        """
+        # Expand shared [1, 1, D] -> [B, K, D] so every slot in every batch item
+        # is drawn independently from the same N(mu, diag(sigma)).
+        mu = self.slot_mu.expand(batch_size, self.num_outputs, -1).to(device=device, dtype=dtype)
+
+        # Stochastic init: independent noise per slot per sample.
+        sigma = self.slot_log_sigma.exp().expand(batch_size, self.num_outputs, -1).to(device=device, dtype=dtype)
+        noise = torch.randn(batch_size, self.num_outputs, self.dim_hidden, device=device, dtype=dtype)
         return mu + sigma * noise
 
     def forward(

@@ -2,7 +2,7 @@ seed: 42
 lr: 7.0e-4
 decay_rate: 0.985
 lamb: 1.5e-4
-epochs: 30
+epochs: 15
 hidden_dim: 64
 n_layer: 3
 dropout: 0.08
@@ -34,10 +34,10 @@ slot_attn_use_residual_mlp: true
 slot_attn_learned_slot_init: true
 
 tau_min: 0.1
-tau_max: 1.8
-tau_anneal_epochs: 20  # tau reaches tau_max after this many epochs
+tau_max: 1
+tau_anneal_epochs: 10  # tau reaches tau_max after this many epochs
 tau_g: 1.2
 pred_rank: 16
 
 lambda_intent_div: 2.0e-3
-lambda_centroid_ortho: 3.0e-3
+lambda_centroid_ortho: 0
