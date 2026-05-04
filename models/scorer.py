@@ -3,6 +3,42 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+def sparsemax(z: torch.Tensor, dim: int = -1) -> torch.Tensor:
+    """
+    Sparsemax activation (Martins & Astudillo, 2016).
+
+    Projects z onto the probability simplex such that only the top-scoring
+    elements receive positive weight. Differentiable almost-everywhere.
+
+    Algorithm (O(K log K) sort-based projection):
+        1. Sort z in descending order.
+        2. Find k* = max{k : 1 + k*z_{(k)} > sum_{j<=k} z_{(j)}}
+        3. tau* = (sum_{j<=k*} z_{(j)} - 1) / k*
+        4. Return ReLU(z - tau*)
+
+    Args:
+        z:   Input tensor of arbitrary shape.
+        dim: Dimension over which sparsemax is applied (default: last).
+
+    Returns:
+        Tensor of the same shape as z, with values on the probability simplex.
+    """
+    # Move target dim to the last position for easy indexing.
+    z = z.transpose(dim, -1)                          # [..., K]
+    sorted_z, _ = torch.sort(z, descending=True, dim=-1)
+    K = z.shape[-1]
+    k = torch.arange(1, K + 1, dtype=z.dtype, device=z.device)  # [K]
+    cumsum = sorted_z.cumsum(dim=-1)                  # [..., K]
+    # Condition: 1 + k * z_{(k)} > cumsum(z)_{k}
+    is_support = (1.0 + k * sorted_z > cumsum)        # [..., K]
+    # k_z: number of support elements (at least 1 to avoid degenerate output).
+    k_z = is_support.long().sum(dim=-1, keepdim=True).clamp(min=1)  # [..., 1]
+    # tau: threshold such that p = max(0, z - tau) sums to 1.
+    tau = (cumsum.gather(-1, k_z - 1) - 1.0) / k_z.float()         # [..., 1]
+    p = torch.clamp(z - tau, min=0.0)                # [..., K]
+    return p.transpose(dim, -1)                       # restore original dim order
+
+
 class FiLMIntentConditioner(nn.Module):
     """
     Transform user-specific intent slots into FiLM parameters and produce
@@ -57,7 +93,15 @@ class IntentSlotNodeScorer(nn.Module):
 
     For node v belonging to query b:
         s_{b,v,k} = w2 . LeakyReLU(W1_slot @ h_tilde_{b,k} + W1_node @ h_v + b1)
-        s_{b,v}   = (1 / tau) * log sum_k exp(tau * s_{b,v,k})
+
+    Intent aggregation via temperature-scaled sparsemax:
+        alpha_{b,v}   = sparsemax(tau * s_{b,v,:})   in R^K  (sparse probability vector)
+        s_{b,v}       = sum_k  alpha_{b,v,k} * s_{b,v,k}
+
+    At high tau the distribution is near-uniform (all intents contribute);
+    at low tau it sharpens toward a winner-takes-most selection.
+    Anneal tau from high (e.g. 2.0) down toward 1.0 so weaker intents can
+    learn before sparsity becomes dominant.
 
     The first linear of the MLP is factored as W1 = [W1_slot | W1_node] so we
     never materialize the [N, K, 2D] concatenation. Mathematically equivalent
@@ -101,7 +145,12 @@ class IntentSlotNodeScorer(nn.Module):
                     f"intent_bias must have {k} entries, got {intent_bias.numel()}."
                 )
             s_k = s_k + intent_bias.view(1, k)
-        s_v = torch.logsumexp(self.tau * s_k, dim=-1) / self.tau
+
+        # Sparsemax-weighted mixture over intents: sparsemax(s_k / tau).
+        # High tau  => small logits => near-uniform alpha  (all intents contribute)
+        # Low tau   => large logits => sparse alpha         (winner-takes-most)
+        alpha = sparsemax(s_k / self.tau, dim=-1)   # [N, K]  sparse simplex weights
+        s_v = (alpha * s_k).sum(dim=-1)             # [N]     weighted aggregate
         return s_v, s_k
 
 

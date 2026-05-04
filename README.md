@@ -24,7 +24,7 @@ Graph-based recommendation model that expands per-user collaborative KG subgraph
 ## Clone
 
 ```bash
-git clone https://github.com/edithh81/GraphKISS.git
+git clone https://github.com/tinta2510/GraphKISS.git
 cd GraphKISS
 ```
 
@@ -116,7 +116,6 @@ All hyperparameters live in `configs/<dataset>.yaml`. Key parameters:
 | `lr` | Learning rate |
 | `epochs` | Training epochs |
 | `lambda_intent_div` | Weight for intra-user intent diversity loss |
-| `lambda_centroid_ortho` | Weight for cross-user centroid orthogonality loss |
 | `tau_s` / `tau_p` | Sampling / prediction logsumexp temperature |
 
 ---

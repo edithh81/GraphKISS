@@ -40,12 +40,19 @@ class BaseModel(object):
 
         self.t_time = 0
 
-    def train_batch(self):
+    def train_batch(self, epoch: int = 0):
         epoch_loss = 0.0
         epoch_bpr = 0.0
         batch_size = self.n_batch
         n_batch = self.loader.n_train // batch_size + (self.loader.n_train % batch_size > 0)
 
+        # Anneal temperature once per epoch before any forward passes.
+        if hasattr(self.model, "set_temperature"):
+            current_tau = self.model.set_temperature(epoch)
+        else:
+            current_tau = getattr(self.model, "tau_p", 1.0)
+        self.current_tau = current_tau
+        print(f"[Epoch {epoch}] tau = {current_tau:.4f}")
         if torch.cuda.is_available():
             torch.cuda.reset_peak_memory_stats()
         t_time = time.time()
@@ -69,13 +76,12 @@ class BaseModel(object):
             loss = (
                 bpr_loss
                 + float(getattr(self.args, "lambda_intent_div", 1e-4)) * aux["intent_div_loss"]
-                + float(getattr(self.args, "lambda_centroid_ortho", 1e-3)) * aux["centroid_ortho_loss"]
             )
             loss.backward()
             torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
             self.optimizer.step()
 
-            pbar.set_postfix(loss=f"{loss.item():.4f}", bpr=f"{bpr_loss.item():.4f}")
+            pbar.set_postfix(loss=f"{loss.item():.4f}", bpr=f"{bpr_loss.item():.4f}", tau=f"{current_tau:.3f}")
 
             epoch_loss += loss.item()
             epoch_bpr += bpr_loss.item()
@@ -86,7 +92,7 @@ class BaseModel(object):
         self.scheduler.step()
         print(
             f"epoch_loss: {epoch_loss:.4f}  epoch_bpr: {epoch_bpr:.4f}  "
-            f"lr: {self.scheduler.get_last_lr()[0]:.6f}"
+            f"tau: {current_tau:.4f}  lr: {self.scheduler.get_last_lr()[0]:.6f}"
         )
         print("start test")
         recall, ndcg, out_str = self.test_batch()

@@ -33,10 +33,10 @@ slot_attn_use_gru: true
 slot_attn_use_residual_mlp: true
 slot_attn_learned_slot_init: true
 
-tau_s: 1.8
-tau_p: 1.8
+tau_min: 1.0
+tau_max: 1.5
+tau_anneal_epochs: 20  # tau anneals from tau_max down to tau_min over this many epochs
 tau_g: 1.2
 pred_rank: 16
 
 lambda_intent_div: 2.0e-6
-lambda_centroid_ortho: 2.0e-6

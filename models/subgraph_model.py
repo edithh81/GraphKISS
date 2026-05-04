@@ -12,7 +12,7 @@ from .aggregator import (
     KUCNetAggregator,
     DegreeScalerSumAggregator,
 )
-from .scorer import FiLMIntentConditioner, IntentSlotNodeScorer, LowRankIntentItemScorer
+from .scorer import FiLMIntentConditioner, IntentSlotNodeScorer, LowRankIntentItemScorer, sparsemax
 from .slot_attention_blocks import SlotAttentionIntentExtractor
 from ppr import compress_ppr_to_topk, get_ppr
 
@@ -126,36 +126,6 @@ def intent_diversity_loss(intent_slots: torch.Tensor) -> torch.Tensor:
     for k in range(K):
         for kp in range(k + 1, K):
             loss = loss + _dcor(intent_slots[:, k, :], intent_slots[:, kp, :])
-    return loss
-
-
-def centroid_orthogonality_loss(intent_slots: torch.Tensor) -> torch.Tensor:
-    """
-    Cross-user distance-correlation independence regularizer.
-
-    Computes batch-mean centroids c_k = mean_u p_{u,k} ∈ R^D, then measures
-    pairwise dCor between centroids treating the D feature dimensions as samples:
-        L_cross = Σ_{1≤k<k'≤K} dCor(c_k, c_k')
-
-    Prevents cross-user collapse: all users' slot k drifting to the same direction.
-    """
-    if intent_slots is None or intent_slots.numel() == 0:
-        device = intent_slots.device if intent_slots is not None else "cpu"
-        return torch.tensor(0.0, device=device)
-    if intent_slots.dim() != 3:
-        raise ValueError(
-            f"intent_slots must have shape [B, K, D], got {tuple(intent_slots.shape)}."
-        )
-    K = intent_slots.size(1)
-    if K <= 1:
-        return intent_slots.new_tensor(0.0)
-
-    centroids = intent_slots.mean(dim=0)   # [K, D]
-    loss = intent_slots.new_tensor(0.0)
-    for k in range(K):
-        for kp in range(k + 1, K):
-            # treat D dimensions as n samples, each centroid value as a scalar obs
-            loss = loss + _dcor(centroids[k].unsqueeze(-1), centroids[kp].unsqueeze(-1))
     return loss
 
 
@@ -489,7 +459,6 @@ class AdaptiveSubgraphLayer(nn.Module):
                 "tuple_rel_ids": tuple_records["rel_id"],
                 "intent_slots": intent_slots,
                 "intent_div_loss": intent_diversity_loss(intent_slots),
-                "centroid_ortho_loss": centroid_orthogonality_loss(intent_slots),
             }
 
         # Layer 1 (hop-1 items) is fully kept. Sampling starts from hop 2.
@@ -639,8 +608,12 @@ class AdaptiveSubgraphModel(torch.nn.Module):
 
         self.edge_counts_layer: list[int] = []
 
-        self.tau_s = float(getattr(params, "tau_s", getattr(params, "tau", 1.0)))
-        self.tau_p = float(getattr(params, "tau_p", getattr(params, "tau", 1.0)))
+        self.tau_min = float(getattr(params, "tau_min", getattr(params, "tau_s", getattr(params, "tau", 0.1))))
+        self.tau_max = float(getattr(params, "tau_max", getattr(params, "tau_s", getattr(params, "tau", 1.8))))
+        self.tau_anneal_epochs = int(getattr(params, "tau_anneal_epochs", getattr(params, "epochs", 20)))
+        # Both scorer temperatures start at tau_min and will be annealed via set_temperature().
+        self.tau_s = self.tau_min
+        self.tau_p = self.tau_min
         self.tau_g = float(getattr(params, "tau_g", 1.0))
         self.pred_rank = int(getattr(params, "pred_rank", max(8, self.hidden_dim // 2)))
 
@@ -652,7 +625,6 @@ class AdaptiveSubgraphModel(torch.nn.Module):
         slot_attn_use_mlp_ln = bool(getattr(params, "slot_attn_use_mlp_ln", True))
         slot_attn_use_gru = bool(getattr(params, "slot_attn_use_gru", True))
         slot_attn_use_residual_mlp = bool(getattr(params, "slot_attn_use_residual_mlp", True))
-        slot_attn_learned_slot_init = bool(getattr(params, "slot_attn_learned_slot_init", True))
         tuple_dropout = float(getattr(params, "tuple_dropout", 0.0))
 
         self.item_bonus = nn.Parameter(
@@ -804,7 +776,6 @@ class AdaptiveSubgraphModel(torch.nn.Module):
             eps=slot_attn_eps,
             hidden_dim=slot_attn_mlp_hidden,
             tuple_dropout=tuple_dropout,
-            learned_slot_init=slot_attn_learned_slot_init,
             use_input_ln=slot_attn_use_input_ln,
             use_slot_ln=slot_attn_use_slot_ln,
             use_mlp_ln=slot_attn_use_mlp_ln,
@@ -844,6 +815,43 @@ class AdaptiveSubgraphModel(torch.nn.Module):
 
         self.dropout = nn.Dropout(params.dropout)
         self.gate = nn.GRU(self.hidden_dim, self.hidden_dim)
+
+    # ------------------------------------------------------------------
+    # Temperature annealing
+    # ------------------------------------------------------------------
+    def set_temperature(self, epoch: int) -> float:
+        """
+        Anneal tau from tau_max (high, near-uniform) down to tau_min (low, sparse).
+
+        tau = clamp(tau_max - (tau_max - tau_min) * epoch / tau_anneal_epochs,
+                    tau_min, tau_max)
+
+        At epoch 0  : tau = tau_max  => sparsemax weights near-uniform
+                                        (all intents get a chance to learn)
+        At epoch T+  : tau = tau_min  => sparsemax weights are maximally sparse
+                                        (winning intent dominates)
+
+        Recommended starting values: tau_max=2.0, tau_min=1.0
+
+        Call once per epoch *before* forward passes begin.
+        Returns the newly applied tau value.
+        """
+        if self.tau_anneal_epochs <= 0:
+            tau = self.tau_min
+        else:
+            progress = min(1.0, epoch / self.tau_anneal_epochs)
+            tau = self.tau_max - (self.tau_max - self.tau_min) * progress
+
+        tau = float(max(self.tau_min, min(self.tau_max, tau)))
+
+        # Update prediction scorer temperature.
+        self.tau_p = tau
+
+        # Update all node-scorer temperatures in-place.
+        for layer in self.gnn_layers:
+            layer.scorer.tau = tau
+
+        return tau
 
     def _build_batch_ppr(self, q_sub):
         if self.ppr_store is None:
@@ -956,18 +964,19 @@ class AdaptiveSubgraphModel(torch.nn.Module):
             user_views=user_views,
             item_emb=h_i,
         )
-        scores = torch.logsumexp(self.tau_p * scores_k, dim=-1) / self.tau_p
+        # Sparsemax-weighted mixture over intents for final prediction: sparsemax(ŷ / tau_p).
+        # High tau_p => near-uniform alpha; low tau_p => sparse alpha.
+        alpha = sparsemax(scores_k / self.tau_p, dim=-1)  # [M, K]
+        scores = (alpha * scores_k).sum(dim=-1)            # [M]
 
         scores_all = torch.zeros((n, self.n_items), device=self.device)
         scores_all[(final_nodes[:, 0], final_nodes[:, 1] - self.n_users)] = scores
 
         zero = torch.tensor(0.0, device=self.device)
         intent_div_loss = intent_state.get("intent_div_loss", zero) if intent_state is not None else zero
-        centroid_ortho_loss = intent_state.get("centroid_ortho_loss", zero) if intent_state is not None else zero
 
         if return_aux:
             return scores_all, {
                 "intent_div_loss": intent_div_loss,
-                "centroid_ortho_loss": centroid_ortho_loss,
             }
         return scores_all
