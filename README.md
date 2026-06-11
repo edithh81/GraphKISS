@@ -1,19 +1,3 @@
-# KISS: Knowledge-aware Intent-guided Subgraph Sampling
-
-Graph-based recommendation model that expands per-user collaborative KG subgraphs, extracts user intents via Slot Attention, and uses intent-conditioned Gumbel-TopK sampling for efficient, personalized subgraph reasoning.
-
----
-
-## Overview
-
-| (2a) Subgraph Construction | (2b) Intent Modelling | (2c) Intent-guided Sampling |
-|:---:|:---:|:---:|
-| ![two-hop](assets/two-hop.svg) | ![intent](assets/intent_modelling.svg) | ![three-hop](assets/three-hop.svg) |
-
-**Fig.** For a target user *u₁*, a user-centric computation graph is built via layer-wise CKG expansion **(2a)**. Item attribute tuples are encoded and aggregated into latent intents via Slot Attention **(2b)**. These intents guide adaptive node sampling, yielding a compact but informative subgraph **(2c)**.
-
----
-
 ## Requirements
 
 - Python ≥ 3.10
